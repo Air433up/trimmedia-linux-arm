@@ -81,6 +81,12 @@ if [ -e "nodri.so" ]; then
     mv nodri.so lib/
 fi
 
+if [ ! -e "/proc/device-tree/compatible" ]; then
+    if [ -e "fakecompat.so" ]; then
+        mv fakecompat.so lib/
+    fi
+fi
+
 chmod +x ./mediasrv.arm64
 
 info "依赖安装完成 ✅"
