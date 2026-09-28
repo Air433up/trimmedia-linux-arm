@@ -31,10 +31,32 @@ func main() {
 	}
 	log.Printf("BINPATH = [%s], LD_LIBRARY_PATH = [%s]\n", BINPATH, LD_LIBRARY_PATH)
 
-
 	os.MkdirAll("/usr/trim/etc/", 0755) // 这个目录必须存在，否则下面的命令会报错
 	mediasrv := exec.CommandContext(ctx, filepath.Join(BINPATH, "bin/mediasrv"), "-a", "/var/run/mediasrv.socket")
-	mediasrv.Env = append(os.Environ(), fmt.Sprintf("LD_LIBRARY_PATH=%s", LD_LIBRARY_PATH), fmt.Sprintf("LD_PRELOAD=%s", filepath.Join(BINPATH, "lib/nodri.so")))
+	CUST_LD_PRELOAD := os.Getenv("LD_PRELOAD")
+	LD_PRELOAD_LIB := []string{}
+	NODIRSO := filepath.Join(BINPATH, "lib/nodri.so")
+	NOCPUINFOSO := filepath.Join(BINPATH, "lib/fakecompat.so")
+	if CUST_LD_PRELOAD != "" {
+		LD_PRELOAD_LIB = append(LD_PRELOAD_LIB, CUST_LD_PRELOAD)
+	}
+
+	if _, err := os.Stat(NODIRSO); err == nil {
+		LD_PRELOAD_LIB = append(LD_PRELOAD_LIB, NODIRSO)
+	}
+
+	if _, err := os.Stat(NOCPUINFOSO); err == nil {
+		LD_PRELOAD_LIB = append(LD_PRELOAD_LIB, NOCPUINFOSO)
+	}
+
+	envs := os.Environ()
+	envs = append(envs, fmt.Sprintf("LD_LIBRARY_PATH=%s", LD_LIBRARY_PATH))
+
+	if len(LD_PRELOAD_LIB) > 0 {
+		envs = append(envs, fmt.Sprintf("LD_PRELOAD=%s", strings.Join(LD_PRELOAD_LIB, ":")))
+	}
+
+	mediasrv.Env = envs
 	mediasrv.SysProcAttr = &syscall.SysProcAttr{Setpgid: true, Pdeathsig: syscall.SIGTERM}
 
 	w := io.MultiWriter(os.Stdout)
