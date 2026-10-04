@@ -46,14 +46,15 @@ jobs:
         run: |
           mkdir -p _build
           # 每个服务有独立的 go.mod，必须用 -C 切到子目录编译
+          # -C 必须是 go build 的第一个参数
           echo "=== Building rpcbroker ==="
-          go build -v -C ./apps/rpcbroker -trimpath -ldflags="-s -w" -o ../../_build/rpcbroker.arm64 .
+          go build -C ./apps/rpcbroker -v -trimpath -ldflags="-s -w" -o ${{ github.workspace }}/_build/rpcbroker.arm64 .
           echo "=== Building mediasrv ==="
-          go build -v -C ./apps/mediasrv -trimpath -ldflags="-s -w" -o ../../_build/mediasrv.arm64 .
+          go build -C ./apps/mediasrv -v -trimpath -ldflags="-s -w" -o ${{ github.workspace }}/_build/mediasrv.arm64 .
           echo "=== Building fntv ==="
-          go build -v -C ./apps/fntv -trimpath -ldflags="-s -w" -o ../../_build/fntv.arm64 .
+          go build -C ./apps/fntv -v -trimpath -ldflags="-s -w" -o ${{ github.workspace }}/_build/fntv.arm64 .
           echo "=== Building fnmusic ==="
-          go build -v -C ./apps/fnmusic -trimpath -ldflags="-s -w" -o ../../_build/fnmusic.arm64 .
+          go build -C ./apps/fnmusic -v -trimpath -ldflags="-s -w" -o ${{ github.workspace }}/_build/fnmusic.arm64 .
           echo "=== All Go binaries built ==="
           ls -lh _build/
 
