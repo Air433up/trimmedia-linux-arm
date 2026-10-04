@@ -1,0 +1,54 @@
+# ============================================================
+# Dockerfile.cipack — 纯打包版（Go 已在 CI 中交叉编译好）
+# 用于 GitHub Actions：workflow 先编译 Go + nodri.so，本 Dockerfile 只做组装
+# ============================================================
+FROM debian:bookworm-slim
+
+ARG TARGETARCH
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV MEDIA_DIR=/vol1/1000
+ENV FNTV_PORT=8005
+ENV FNMUSIC_PORT=8007
+ENV PROXY_PREFIX=
+
+# 安装运行时依赖
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        sqlite3 wget ca-certificates && \
+    rm -rf /var/lib/apt/lists/*
+
+# 创建目录结构
+RUN mkdir -p /opt/trim/{rpcbroker,mediasrv,fntv,fnmusic} \
+             /var/apps /vol1 /media \
+             /run/trim_app_cgi /run/trim_app_cgi/rpcbroker
+
+# 从 CI 产物拷贝预编译二进制（不需要 builder stage）
+COPY _build/rpcbroker.arm64  /opt/trim/rpcbroker/
+COPY _build/mediasrv.arm64   /opt/trim/mediasrv/
+COPY _build/fntv.arm64       /opt/trim/fntv/
+COPY _build/fnmusic.arm64    /opt/trim/fnmusic/
+COPY _build/nodri.so         /opt/trim/mediasrv/
+
+# 拷贝启动器所需的源文件（SQL、安装脚本、内置库）
+COPY apps/rpcbroker/rpcbroker.go    /opt/trim/rpcbroker/
+COPY apps/mediasrv/mediasrv.go      /opt/trim/mediasrv/
+COPY apps/fntv/fntv.go              /opt/trim/fntv/
+COPY apps/fntv/init.sql             /opt/trim/fntv/
+COPY apps/fntv/lib/                 /opt/trim/fntv/lib/
+COPY apps/fnmusic/fnmusic.go        /opt/trim/fnmusic/
+COPY apps/fnmusic/init_data.sql     /opt/trim/fnmusic/
+COPY apps/fnmusic/lib/              /opt/trim/fnmusic/lib/
+COPY apps/fnmusic/mobile_api.go     /opt/trim/fnmusic/
+COPY apps/fnmusic/proxy.go          /opt/trim/fnmusic/
+
+# 拷贝入口脚本
+COPY docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
+
+EXPOSE 8005 8007
+
+VOLUME ["/vol1", "/media", "/run"]
+
+ENTRYPOINT ["/docker-entrypoint.sh"]
+CMD ["rpcbroker"]
