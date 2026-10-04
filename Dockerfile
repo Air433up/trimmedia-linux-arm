@@ -14,20 +14,26 @@ ARG TARGETARCH
 WORKDIR /src
 COPY . .
 
-# 安装交叉编译工具链（编译 ARM64 的 nodri.so）
+# 安装交叉编译工具链（Go CGO + nodri.so）
 RUN apt-get update && \
     apt-get install -y --no-install-recommends gcc-aarch64-linux-gnu libc6-dev-arm64-cross && \
     rm -rf /var/lib/apt/lists/*
 
-# 交叉编译 4 个 Go 启动器（CGO_ENABLED=0，纯 Go，无需交叉 gcc）
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH} \
-    go build -trimpath -ldflags="-s -w" -o /build/rpcbroker.arm64   ./apps/rpcbroker && \
-    CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH} \
-    go build -trimpath -ldflags="-s -w" -o /build/mediasrv.arm64    ./apps/mediasrv && \
-    CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH} \
-    go build -trimpath -ldflags="-s -w" -o /build/fntv.arm64        ./apps/fntv && \
-    CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH} \
-    go build -trimpath -ldflags="-s -w" -o /build/fnmusic.arm64     ./apps/fnmusic
+# 设置交叉编译环境
+ENV CGO_ENABLED=1
+ENV GOOS=linux
+ENV GOARCH=${TARGETARCH}
+ENV CC=aarch64-linux-gnu-gcc
+
+# 逐个编译，方便定位哪个包出错
+RUN echo "=== Building rpcbroker ===" && \
+    go build -v -trimpath -ldflags="-s -w" -o /build/rpcbroker.arm64 ./apps/rpcbroker && \
+    echo "=== Building mediasrv ===" && \
+    go build -v -trimpath -ldflags="-s -w" -o /build/mediasrv.arm64 ./apps/mediasrv && \
+    echo "=== Building fntv ===" && \
+    go build -v -trimpath -ldflags="-s -w" -o /build/fntv.arm64 ./apps/fntv && \
+    echo "=== Building fnmusic ===" && \
+    go build -v -trimpath -ldflags="-s -w" -o /build/fnmusic.arm64 ./apps/fnmusic
 
 # 用 ARM64 交叉编译器编译 nodri.so 打桩库
 RUN aarch64-linux-gnu-gcc -shared -fPIC -o /build/nodri.so /src/nodri.c
