@@ -26,6 +26,42 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # ---- 在 runner（x86_64）上原生交叉编译 Go，不需要 QEMU ----
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+
+      - name: Install ARM64 cross-compiler
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu
+
+      - name: Cross-compile Go launchers
+        env:
+          CGO_ENABLED: 1
+          GOOS: linux
+          GOARCH: arm64
+          CC: aarch64-linux-gnu-gcc
+        run: |
+          mkdir -p _build
+          echo "=== Building rpcbroker ==="
+          go build -v -trimpath -ldflags="-s -w" -o _build/rpcbroker.arm64 ./apps/rpcbroker
+          echo "=== Building mediasrv ==="
+          go build -v -trimpath -ldflags="-s -w" -o _build/mediasrv.arm64 ./apps/mediasrv
+          echo "=== Building fntv ==="
+          go build -v -trimpath -ldflags="-s -w" -o _build/fntv.arm64 ./apps/fntv
+          echo "=== Building fnmusic ==="
+          go build -v -trimpath -ldflags="-s -w" -o _build/fnmusic.arm64 ./apps/fnmusic
+          echo "=== All Go binaries built ==="
+          ls -lh _build/
+
+      - name: Compile nodri.so (ARM64)
+        run: |
+          aarch64-linux-gnu-gcc -shared -fPIC -o _build/nodri.so nodri.c
+          ls -lh _build/nodri.so
+
+      # ---- Docker 构建（只做打包，不编译） ----
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
         with:
@@ -57,6 +93,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
+          file: Dockerfile.cipack
           platforms: linux/arm64
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
