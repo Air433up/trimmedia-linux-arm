@@ -1,0 +1,97 @@
+# ============================================================
+# trimmedia-linux-arm Docker Compose
+# 用法: docker compose up -d
+# 前提: 在项目根目录先执行 make 构建 Go 启动器
+# ============================================================
+
+services:
+  # ---- rpcbroker: 伪造飞牛系统服务，必须最先启动 ----
+  rpcbroker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: trim-rpcbroker
+    command: ["rpcbroker"]
+    environment:
+      - MEDIA_DIR=${MEDIA_DIR:-/vol1/1000}
+    volumes:
+      - trim-run:/run
+      - trim-vol1:/vol1
+      - media-data:/media
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "test", "-S", "/run/trim_app_cgi/rpcbroker"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+
+  # ---- mediasrv: 转码服务 ----
+  mediasrv:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: trim-mediasrv
+    command: ["mediasrv"]
+    environment:
+      - MEDIA_DIR=${MEDIA_DIR:-/vol1/1000}
+    volumes:
+      - trim-run:/run
+      - trim-var-run:/var/run
+      - media-data:/media
+    depends_on:
+      rpcbroker:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ---- fntv: 飞牛影视 ----
+  fntv:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: trim-fntv
+    command: ["fntv"]
+    environment:
+      - MEDIA_DIR=${MEDIA_DIR:-/vol1/1000}
+      - WEB_PORT=8005
+    ports:
+      - "${FNTV_PORT:-8005}:8005"
+    volumes:
+      - trim-run:/run
+      - trim-vol1:/vol1
+      - media-data:/media
+    depends_on:
+      rpcbroker:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ---- fnmusic: 飞牛音乐 ----
+  fnmusic:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: trim-fnmusic
+    command: ["fnmusic"]
+    environment:
+      - MEDIA_DIR=${MEDIA_DIR:-/vol1/1000}
+      - WEB_PORT=8007
+    ports:
+      - "${FNMUSIC_PORT:-8007}:8007"
+    volumes:
+      - trim-run:/run
+      - trim-vol1:/vol1
+      - media-data:/media
+    depends_on:
+      rpcbroker:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  trim-run:
+    name: trim-run
+  trim-var-run:
+    name: trim-var-run
+  trim-vol1:
+    name: trim-vol1
+  media-data:
+    name: trim-media-data
