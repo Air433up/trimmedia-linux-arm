@@ -45,14 +45,15 @@ jobs:
           CC: aarch64-linux-gnu-gcc
         run: |
           mkdir -p _build
+          # 每个服务有独立的 go.mod，必须用 -C 切到子目录编译
           echo "=== Building rpcbroker ==="
-          go build -v -trimpath -ldflags="-s -w" -o _build/rpcbroker.arm64 ./apps/rpcbroker
+          go build -v -C ./apps/rpcbroker -trimpath -ldflags="-s -w" -o ../../_build/rpcbroker.arm64 .
           echo "=== Building mediasrv ==="
-          go build -v -trimpath -ldflags="-s -w" -o _build/mediasrv.arm64 ./apps/mediasrv
+          go build -v -C ./apps/mediasrv -trimpath -ldflags="-s -w" -o ../../_build/mediasrv.arm64 .
           echo "=== Building fntv ==="
-          go build -v -trimpath -ldflags="-s -w" -o _build/fntv.arm64 ./apps/fntv
+          go build -v -C ./apps/fntv -trimpath -ldflags="-s -w" -o ../../_build/fntv.arm64 .
           echo "=== Building fnmusic ==="
-          go build -v -trimpath -ldflags="-s -w" -o _build/fnmusic.arm64 ./apps/fnmusic
+          go build -v -C ./apps/fnmusic -trimpath -ldflags="-s -w" -o ../../_build/fnmusic.arm64 .
           echo "=== All Go binaries built ==="
           ls -lh _build/
 
